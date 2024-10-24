@@ -90,7 +90,6 @@ void add_multiple_row(MatrixType& A,
  assert(i <= mt.max_row(A));
  assert(mt.min_row(A) <= k);
  assert(k <= mt.max_row(A));
- #pragma omp simd
  for (index_type col = mt.min_column(A); col <= mt.max_column(A); ++col)
   mt.element(A, i, col) += v * mt.element(A, k, col);
 }
@@ -113,7 +112,6 @@ template<typename MatrixType> void to_canonical_rows_form(MatrixType& A) {
   }
   swap_rows(A, i, row);
   divide_row(A, row, mt.element(A, row, lead));
-  #pragma omp simd
   for (i = mt.min_row(A); i <= mt.max_row(A); i++) {
    if (i != row) add_multiple_row(A, i, row, -mt.element(A, i, lead));
   }
@@ -122,7 +120,7 @@ template<typename MatrixType> void to_canonical_rows_form(MatrixType& A) {
 
 int main() {
  const int N = 3, M = 5;
- alignas(32) double A[N][M] = {
+ double A[N][M] = {
   { 3,2,2,3,1 },
   { 6,4,4,6,2 },
   { 9,6,6,9,1 }
