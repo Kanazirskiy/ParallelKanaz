@@ -131,24 +131,35 @@ void to_canonical_rows_form(MatrixType& A) {
     matrix_desc<MatrixType> mt;
     typedef typename matrix_desc<MatrixType>::index_type index_type;
     index_type lead = mt.min_row(A);
-    for (index_type row = mt.min_row(A); row <= mt.max_row(A); ++row) {
-        if (lead > mt.max_column(A)) return;
-        index_type i = row;
-        while (mt.element(A, i, lead) == 0) {
-            i++;
-            if (i > mt.max_row(A)) {
-                i = row;
-                lead++;
-                if (lead > mt.max_column(A)) return;
-            }
-        }
-        swap_rows(A, i, row);
-        divide_row(A, row, mt.element(A, row, lead));
 
-        #pragma omp parallel for
-        for (i = mt.min_row(A); i <= mt.max_row(A); i++) {
-            if (i != row)
-                add_multiple_row(A, i, row, -mt.element(A, i, lead));
+    for (index_type row = mt.min_row(A); row <= mt.max_row(A); ++row) {
+        while (lead <= mt.max_column(A)) {
+            index_type i = row;
+            // Поиск строки с ненулевым ведущим элементом
+            while (mt.element(A, i, lead) == 0) {
+                i++;
+                if (i > mt.max_row(A)) {
+                    i = row;
+                    lead++;
+                    if (lead > mt.max_column(A)) {
+                        break; // Прерывание, если все строки обработаны
+                    }
+                }
+            }
+
+            if (lead > mt.max_column(A)) break; // Прерывание если ведущий элемент выходит за пределы
+
+            // Поменять строки
+            swap_rows(A, i, row);
+            divide_row(A, row, mt.element(A, row, lead));
+
+            // Выполнить параллельно обновление строк
+            #pragma omp parallel for
+            for (i = mt.min_row(A); i <= mt.max_row(A); i++) {
+                if (i != row)
+                    add_multiple_row(A, i, row, -mt.element(A, i, lead));
+            }
+            break;
         }
     }
 }
@@ -168,7 +179,7 @@ void generate_large_matrix(double (&A)[N][M]) {
 int main() {
     alignas(32) double A[N][M];
     generate_large_matrix(A);
-    omp_set_num_threads(2);
+    omp_set_num_threads(4); // Устанавливаем количество потоков
     auto start = high_resolution_clock::now();
     to_canonical_rows_form(A);
     auto stop = high_resolution_clock::now();
